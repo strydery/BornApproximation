@@ -98,14 +98,14 @@ for wavelength in wavelengths:
     z_vals = np.arange(-scatterer_domain, scatterer_domain + pitch, pitch)
     scatterer_positions = np.array([(x, y, z) for x in x_vals for y in y_vals for z in z_vals], dtype=np.float64)
 
-    output_dir = "Simulations/BornApproximation/Building_up_scattering_path"
+    output_dir = "output"
     os.makedirs(f"{output_dir}/{wavelength:.5f}/total", exist_ok=True)
     os.makedirs(f"{output_dir}/{wavelength:.5f}/inc", exist_ok=True)
     os.makedirs(f"{output_dir}/{wavelength:.5f}/scat", exist_ok=True)
 
-    os.makedirs(f"{output_dir}/wavelengths/scat", exist_ok=True)
-    os.makedirs(f"{output_dir}/wavelengths/inc", exist_ok=True)
-    os.makedirs(f"{output_dir}/wavelengths/total", exist_ok=True)
+    os.makedirs(f"{output_dir}/wavelength_sweep/scat", exist_ok=True)
+    os.makedirs(f"{output_dir}/wavelength_sweep/inc", exist_ok=True)
+    os.makedirs(f"{output_dir}/wavelength_sweep/total", exist_ok=True)
 
     accumulated_total = np.zeros_like(X)
     accumulated_inc = np.zeros_like(X)
@@ -114,18 +114,13 @@ for wavelength in wavelengths:
     # Frame loop with export per frame
     for frame_idx, t in enumerate(tqdm(t_vals, desc=f"Wavelength {wavelength:.2f}")):
         inc = incident_field(X, Y, Z, t, k, omega)
-        scat = compute_scattered_field(X, Y, Z, t, scatterer_positions, k, omega, c, 0.15 * scatterer_gain, nx, ny, nz)
+        scat = compute_scattered_field(X, Y, Z, t, scatterer_positions, k, omega, c, scatterer_gain, nx, ny, nz)
         total = np.abs(inc + scat)**2
 
         # Accumulate intensities
         accumulated_total += total
-        accumulated_scat += scat**2 / 135.54212431331342
-        accumulated_inc += inc**2 / 8.29420305334193
-
-        # Thresholding
-        accumulated_total[accumulated_total < 1e-5] = 0
-        accumulated_scat[accumulated_scat < 1e-5] = 0
-        accumulated_inc[accumulated_inc < 1e-5] = 0
+        accumulated_scat += scat**2 
+        accumulated_inc += inc**2
 
         # Write VDB for each component
         grid = vdb.FloatGrid()
@@ -154,16 +149,16 @@ for wavelength in wavelengths:
             grid = vdb.FloatGrid()
             grid.copyFromArray(accumulated_total.astype(np.float32))
             grid.name = "intensity"
-            vdb.write(f"{output_dir}/wavelengths/total/accumulated_total_{counter:03d}.vdb", grids=[grid])
+            vdb.write(f"{output_dir}/wavelength_sweep/total/accumulated_total_{counter:03d}.vdb", grids=[grid])
 
             grid = vdb.FloatGrid()
             grid.copyFromArray(accumulated_scat.astype(np.float32))
             grid.name = "intensity"
-            vdb.write(f"{output_dir}/wavelengths/scat/accumulated_scat_{counter:03d}.vdb", grids=[grid])
+            vdb.write(f"{output_dir}/wavelength_sweep/scat/accumulated_scat_{counter:03d}.vdb", grids=[grid])
 
             grid = vdb.FloatGrid()
             grid.copyFromArray(accumulated_inc.astype(np.float32))
             grid.name = "intensity"
-            vdb.write(f"{output_dir}/wavelengths/inc/accumulated_inc_{counter:03d}.vdb", grids=[grid])
+            vdb.write(f"{output_dir}/wavelength_sweep/inc/accumulated_inc_{counter:03d}.vdb", grids=[grid])
 
 print("--- %s seconds ---" % (time.time() - start_time))
